@@ -203,15 +203,39 @@ function normalizeModeName(name) {
     return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+function normalizeThemeId(name) {
+    return String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-');
+}
+
 function getPrimitiveSetKey(data) {
     if (data.Primitive) return 'Primitive';
     if (data.primitive) return 'primitive';
     return null;
 }
 
+function getDeclaredThemeNames(data) {
+    if (!Array.isArray(data.$themes)) return [];
+    return data.$themes
+        .map(theme => theme && (theme.name || theme.id))
+        .filter(Boolean)
+        .map(normalizeModeName);
+}
+
+function detectPayloadType(data) {
+    const topLevelKeys = Object.keys(data).filter(k => !k.startsWith('$'));
+    const splitSetKeys = topLevelKeys.filter(k => k.includes('/'));
+    if (splitSetKeys.length) return 'ai-native-schema';
+    if (getPrimitiveSetKey(data)) return 'token-studio-native';
+    return 'unknown';
+}
+
 function analyzePayload(data) {
     const primitiveKey = getPrimitiveSetKey(data);
     const collectionMap = {};
+    const declaredThemeNames = getDeclaredThemeNames(data);
     const topLevelKeys = Object.keys(data).filter(k => !k.startsWith('$'));
     const splitSetKeys = topLevelKeys.filter(k => k.includes('/'));
 
@@ -229,8 +253,11 @@ function analyzePayload(data) {
             }
             collectionMap[normalizedCollectionKey].modes[normalizeModeName(rawModeName)] = data[key];
         }
-    } else if (data.Light || data.Dark) {
-        for (const modeName of ['Light', 'Dark']) {
+    } else {
+        const topLevelModeNames = declaredThemeNames.length
+            ? declaredThemeNames
+            : topLevelKeys.filter(key => key !== primitiveKey);
+        for (const modeName of topLevelModeNames) {
             const modeRoot = data[modeName];
             if (!modeRoot || typeof modeRoot !== 'object') continue;
             for (const [collectionName, subtree] of Object.entries(modeRoot)) {
@@ -257,7 +284,19 @@ function analyzePayload(data) {
         return aIndex - bIndex;
     });
 
-    return { primitiveKey, collections };
+    const discoveredModes = new Set(declaredThemeNames);
+    for (const collection of collections) {
+        for (const modeName of Object.keys(collection.modes)) {
+            discoveredModes.add(modeName);
+        }
+    }
+
+    return {
+        primitiveKey,
+        collections,
+        themeNames: sortModeNames([...discoveredModes]).filter(Boolean),
+        payloadType: detectPayloadType(data)
+    };
 }
 
 function sortModeNames(modeNames) {
@@ -286,7 +325,12 @@ function safelySetValueForMode(variable, modeId, value, path, addUnsupported) {
 
 async function importVariables(data) {
     const report = {
-        unsupported: []
+        unsupported: [],
+        payloadType: 'unknown',
+        themeNames: [],
+        collectionCount: 0,
+        variableCount: 0,
+        gradientStyleCount: 0
     };
 
     function addUnsupported(path, reason) {
@@ -294,15 +338,22 @@ async function importVariables(data) {
     }
 
     const payload = analyzePayload(data);
+    report.payloadType = payload.payloadType;
+    report.themeNames = payload.themeNames;
+    report.collectionCount = payload.collections.length + 1;
     if (!payload.primitiveKey) {
         throw new Error('Missing primitive token set');
     }
 
+    const themeNames = payload.themeNames.length ? payload.themeNames : ['Light'];
+
     // ── 1. PRIMITIVE collection (find or create, update in place) ────────────
 
     const { col: primCol, isNew: primIsNew } = getOrCreateCollection('Primitive');
-    const primLightModeId = ensureMode(primCol, 'Light', primIsNew, true);
-    const primDarkModeId = ensureMode(primCol, 'Dark', primIsNew, false);
+    const primitiveModeIds = {};
+    for (let index = 0; index < themeNames.length; index += 1) {
+        primitiveModeIds[themeNames[index]] = ensureMode(primCol, themeNames[index], primIsNew, index === 0);
+    }
 
     const primTokens = flattenTokens(data[payload.primitiveKey] || {}, '');
 
@@ -333,6 +384,7 @@ async function importVariables(data) {
         }
 
         const variable = getOrCreateVariable(displayName, primCol, figmaType, primExistingVars);
+        report.variableCount += 1;
         if (token.description) variable.description = token.description;
 
         // Hide primitives: not visible in publish panel or inspector
@@ -341,8 +393,9 @@ async function importVariables(data) {
 
         const val = resolvePrimitiveValue(token.type, token.value);
         if (val !== null) {
-            safelySetValueForMode(variable, primLightModeId, val, token.path, addUnsupported);
-            safelySetValueForMode(variable, primDarkModeId, val, token.path, addUnsupported);
+            for (const modeName of themeNames) {
+                safelySetValueForMode(variable, primitiveModeIds[modeName], val, token.path, addUnsupported);
+            }
         } else {
             addUnsupported(token.path, `Unsupported primitive value for type "${token.type}"`);
         }
@@ -418,6 +471,7 @@ async function importVariables(data) {
 
         try {
             style.paints = [gradientPaint];
+            report.gradientStyleCount += 1;
         } catch (err) {
             // Fallback for runtimes that reject variable-bound gradient stops.
             const fallbackPaint = {
@@ -426,6 +480,7 @@ async function importVariables(data) {
                 gradientStops: stops.map(({ position, color }) => ({ position, color }))
             };
             style.paints = [fallbackPaint];
+            report.gradientStyleCount += 1;
             addUnsupported(path, `Gradient stop variable binding not applied: ${err.message}`);
         }
     }
@@ -487,6 +542,7 @@ async function importVariables(data) {
             }
 
             const variable = getOrCreateVariable(displayName, col, figmaType, existingVars);
+            report.variableCount += 1;
             if (seedToken.description) variable.description = seedToken.description;
 
             for (const modeName of modeNames) {

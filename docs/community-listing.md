@@ -8,57 +8,69 @@ ds skill v2
 
 ## Tagline
 
-Import adapted design tokens into Figma Variables with support for collections, modes, aliases, and gradients.
+Import multi-theme tokens into Figma Variables and styles with support for modes, aliases, and gradients.
 
 ## Short Description
 
-`ds skill v2` imports schema-adapted design token JSON into local Figma Variables and paint styles. It is designed for teams with a canonical token source that has been adapted into a Figma-friendly contract.
+`ds skill v2` imports multi-theme design token JSON into local Figma Variables and paint styles. It supports direct import for Token Studio native schema and adapted import through the AI Native schema.
 
 ## Full Description
 
-`ds skill v2` is a schema-driven variable importer for design systems.
+`ds skill v2` is a multi-theme token importer for design systems.
 
-It helps teams move an adapted token payload into Figma as:
+It helps teams move token payloads into Figma as:
 
 - variable collections
 - collection modes
 - local variables
 - gradient paint styles
 
-The plugin is designed for design-token workflows where one canonical source is transformed into a Figma adapter payload before import.
+The plugin is designed for two workflows:
+
+- direct import of Token Studio native schema
+- adapted import into AI Native schema from Figma-derived or custom token models
 
 ### Best for
 
 - teams with an existing design token pipeline
-- systems that already define primitive tokens and one or more semantic layers
+- teams using Token Studio and multiple themes
 - workflows that want deterministic Figma import behavior
-- setups that need aliases, theme modes, and collection grouping to survive import
+- setups that need aliases, theme modes, collections, and gradient styles to survive import
+- teams that want a stable contract for adapting non-Token-Studio models
 
 ### Expected input
 
-The plugin expects a JSON payload that follows the public adapter contract in [`schema/figma-adapter-spec.md`](../schema/figma-adapter-spec.md).
+The plugin accepts:
+
+- Token Studio native schema
+- AI Native schema as defined in [`schema/ai-native-schema.md`](../schema/ai-native-schema.md)
 
 At minimum, the payload should include:
 
 - a required `primitive` set
 - token leaves using `$value`
+- one or more themes or modes
 - stable alias paths such as `{primitive.color.blue.500}`
 
-Optional collections such as `semantic`, `pattern`, and `component` can also be imported when present.
+Collections such as `semantic`, `pattern`, and `component` are supported when present, but the main emphasis is correct multi-theme import and style generation.
 
 ### What it does not do
 
-- It does not import arbitrary Figma variable exports.
+- It does not import arbitrary Figma variable exports without adaptation.
 - It does not infer a complete design-token architecture from unstructured JSON.
 - It does not send token data to an external service.
 
 ### Typical workflow
 
 ```text
-source tokens -> normalize (optional) -> adapt -> plugin import
+Token Studio native schema -> plugin import
 ```
 
-If your source system uses different naming or layer conventions, adapt it into the plugin's contract before import.
+```text
+Figma export or custom model -> adapt to AI Native schema -> plugin import
+```
+
+If your source system uses different naming or layer conventions, adapt it into AI Native schema before import.
 
 ## Data and Security Notes
 

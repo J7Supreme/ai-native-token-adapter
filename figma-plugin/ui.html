@@ -230,6 +230,12 @@
       background: #818cf810;
     }
 
+    .badge.neutral {
+      border-color: #374151;
+      color: #cbd5e1;
+      background: #111827;
+    }
+
     /* ── Notice ── */
     .notice {
       background: #1c2333;
@@ -414,20 +420,29 @@
         <div class="card">
           <div class="card-label">Themed Variables</div>
           <div class="card-value" id="semCount">—</div>
-          <div class="card-sub">semantic · pattern · component</div>
+          <div class="card-sub" id="collectionSummary">multi-theme collections</div>
+        </div>
+      </div>
+      <div class="summary">
+        <div class="card">
+          <div class="card-label">Collections</div>
+          <div class="card-value" id="collectionCount">—</div>
+          <div class="card-sub">primitive + themed collections</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Gradient Styles</div>
+          <div class="card-value" id="gradientCount">—</div>
+          <div class="card-sub">detected gradient tokens</div>
         </div>
       </div>
       <div class="card" style="flex-direction:row; justify-content:space-between; align-items:center;">
         <div>
           <div class="card-label">Modes</div>
-          <div class="mode-badges">
-            <span class="badge light">🌕 Light</span>
-            <span class="badge dark">🌑 Dark</span>
-          </div>
+          <div class="mode-badges" id="modeBadges"></div>
         </div>
         <div style="text-align:right;">
-          <div class="card-label">Collections</div>
-          <div style="font-size:12px; color:#9ca3af; margin-top:4px;">Primitive + themed collections</div>
+          <div class="card-label">Payload Type</div>
+          <div style="font-size:12px; color:#9ca3af; margin-top:4px;" id="payloadType">—</div>
         </div>
       </div>
     </div>
@@ -512,15 +527,18 @@
     function validate(data) {
       const errs = [];
       const hasPrimitive = Boolean(data.Primitive || data.primitive);
-      const hasLegacyModes = Boolean(data.Light && data.Dark);
+      const declaredThemes = Array.isArray(data.$themes) ? data.$themes.length : 0;
+      const topLevelModeRoots = Object.keys(data).filter(k => !k.startsWith('$') && !k.includes('/') && !['Primitive', 'primitive'].includes(k));
+      const hasLegacyModes = topLevelModeRoots.length > 0;
       const topLevelKeys = Object.keys(data).filter(k => !k.startsWith('$'));
       const splitSets = topLevelKeys.filter(k => k.includes('/'));
       const hasSplitCollections = splitSets.length > 0;
 
       if (!hasPrimitive) errs.push('Missing primitive token set');
       if (!hasLegacyModes && !hasSplitCollections) {
-        errs.push('Missing themed token sets: provide legacy "Light/Dark" or split sets like "semantic/light"');
+        errs.push('Missing themed token sets: provide top-level theme roots or split sets like "semantic/light"');
       }
+      if (declaredThemes && !hasLegacyModes && !hasSplitCollections) errs.push('Declared themes found but no theme token sets were detected');
       return errs;
     }
 
@@ -528,7 +546,7 @@
       for (const [k, v] of Object.entries(obj)) {
         if (k.startsWith('$')) continue;
         if (v && v.$type) count++;
-        else if (typeof v === 'object') count = countTokens(v, count);
+        else if (v && typeof v === 'object') count = countTokens(v, count);
       }
       return count;
     }
@@ -536,20 +554,74 @@
     function showPreview(data) {
       const primitiveRoot = data.Primitive || data.primitive || {};
       let themedCount = 0;
+      let gradientCount = 0;
       const topLevelKeys = Object.keys(data).filter(k => !k.startsWith('$'));
       const splitSets = topLevelKeys.filter(k => k.includes('/'));
+      const payloadType = splitSets.length ? 'AI Native schema' : 'Token Studio native';
+      const collectionNames = new Set();
+      const themeNames = new Set();
 
       if (splitSets.length) {
-        themedCount = splitSets.reduce((sum, key) => sum + countTokens(data[key] || {}), 0);
+        themedCount = splitSets.reduce((sum, key) => {
+          const [collectionName, modeName] = key.split('/');
+          if (collectionName) collectionNames.add(collectionName);
+          if (modeName) themeNames.add(modeName);
+          gradientCount += countGradientTokens(data[key] || {});
+          return sum + countTokens(data[key] || {});
+        }, 0);
       } else {
-        themedCount = countTokens(data.Light || {}) + countTokens(data.Dark || {});
+        topLevelKeys
+          .filter(key => !['Primitive', 'primitive'].includes(key))
+          .forEach(key => {
+            themeNames.add(key);
+            const themeRoot = data[key] || {};
+            for (const [collectionName, subtree] of Object.entries(themeRoot)) {
+              if (!collectionName.startsWith('$')) {
+                collectionNames.add(collectionName);
+                themedCount += countTokens(subtree || {});
+                gradientCount += countGradientTokens(subtree || {});
+              }
+            }
+          });
       }
 
       const primCount = countTokens(primitiveRoot);
       document.getElementById('primCount').textContent = primCount;
       document.getElementById('semCount').textContent = themedCount;
+      document.getElementById('collectionCount').textContent = collectionNames.size + 1;
+      document.getElementById('gradientCount').textContent = gradientCount;
+      document.getElementById('payloadType').textContent = payloadType;
+      document.getElementById('collectionSummary').textContent = collectionNames.size
+        ? Array.from(collectionNames).join(' · ')
+        : 'multi-theme collections';
+      renderModeBadges(Array.from(themeNames));
       const preview = document.getElementById('preview');
       preview.style.display = 'flex';
+    }
+
+    function renderModeBadges(modeNames) {
+      const container = document.getElementById('modeBadges');
+      container.innerHTML = '';
+      if (!modeNames.length) {
+        container.innerHTML = '<span class="badge neutral">No modes detected</span>';
+        return;
+      }
+      modeNames.forEach(modeName => {
+        const badge = document.createElement('span');
+        const normalized = String(modeName).toLowerCase();
+        badge.className = 'badge ' + (normalized === 'light' ? 'light' : normalized === 'dark' ? 'dark' : 'neutral');
+        badge.textContent = modeName;
+        container.appendChild(badge);
+      });
+    }
+
+    function countGradientTokens(obj, count = 0) {
+      for (const [k, v] of Object.entries(obj)) {
+        if (k.startsWith('$')) continue;
+        if (v && v.$type === 'gradient') count++;
+        else if (v && typeof v === 'object') count = countGradientTokens(v, count);
+      }
+      return count;
     }
 
     function clearPreview() {
@@ -611,11 +683,18 @@
         btn.disabled = false;
         btn.textContent = 'Import Variables';
         const unsupported = (msg.report && msg.report.unsupported) || [];
+        const payloadType = msg.report && msg.report.payloadType
+          ? msg.report.payloadType.replace(/-/g, ' ')
+          : 'payload';
+        const themeNames = (msg.report && msg.report.themeNames) || [];
+        const collectionCount = (msg.report && msg.report.collectionCount) || 0;
+        const variableCount = (msg.report && msg.report.variableCount) || 0;
+        const gradientStyleCount = (msg.report && msg.report.gradientStyleCount) || 0;
         if (unsupported.length) {
           showError('Imported with unsupported tokens: ' + unsupported.map(item => `${item.path} (${item.reason})`).join(' · '));
-          setStatus(`Imported with ${unsupported.length} unsupported token issue${unsupported.length === 1 ? '' : 's'}`, 'err');
+          setStatus(`Imported ${payloadType}: ${themeNames.length || 0} theme(s), ${collectionCount} collections, ${variableCount} variables, ${gradientStyleCount} gradients, ${unsupported.length} unsupported`, 'err');
         } else {
-          setStatus('✓ Variables imported', 'ok');
+          setStatus(`✓ Imported ${payloadType}: ${themeNames.length || 0} theme(s), ${collectionCount} collections, ${variableCount} variables, ${gradientStyleCount} gradients`, 'ok');
         }
       }
       if (msg.type === 'sheet-done') {

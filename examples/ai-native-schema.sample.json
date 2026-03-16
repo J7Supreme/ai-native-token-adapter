@@ -1,0 +1,89 @@
+{
+  "primitive": {
+    "primitive": {
+      "color": {
+        "blue": {
+          "500": {
+            "$type": "color",
+            "$value": "#007FFF",
+            "$description": "Brand blue"
+          }
+        },
+        "gray": {
+          "900": {
+            "$type": "color",
+            "$value": "#0F172A"
+          }
+        }
+      }
+    }
+  },
+  "semantic/light": {
+    "text": {
+      "primary": {
+        "$type": "color",
+        "$value": "{primitive.color.gray.900}"
+      }
+    }
+  },
+  "semantic/dark": {
+    "text": {
+      "primary": {
+        "$type": "color",
+        "$value": "{primitive.color.blue.500}"
+      }
+    }
+  },
+  "styles/light": {
+    "gradient": {
+      "hero": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": 180,
+          "stops": [
+            {
+              "position": 0,
+              "color": "{primitive.color.blue.500}"
+            },
+            {
+              "position": 1,
+              "color": "#0F172A"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "styles/dark": {
+    "gradient": {
+      "hero": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": 180,
+          "stops": [
+            {
+              "position": 0,
+              "color": "{primitive.color.blue.500}"
+            },
+            {
+              "position": 1,
+              "color": "#007FFF"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$themes": [
+    {
+      "id": "light",
+      "name": "Light"
+    },
+    {
+      "id": "dark",
+      "name": "Dark"
+    }
+  ]
+}

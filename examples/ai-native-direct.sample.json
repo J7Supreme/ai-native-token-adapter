@@ -1,0 +1,38 @@
+{
+  "primitive": {
+    "primitive": {
+      "color": {
+        "blue": {
+          "500": {
+            "$type": "color",
+            "$value": "#007FFF"
+          }
+        }
+      }
+    }
+  },
+  "semantic/light": {
+    "text": {
+      "primary": {
+        "$type": "color",
+        "$value": "{primitive.color.blue.500}"
+      }
+    }
+  },
+  "$themes": [
+    {
+      "id": "light",
+      "name": "Light",
+      "selectedTokenSets": {
+        "primitive": "enabled",
+        "semantic/light": "enabled"
+      }
+    }
+  ],
+  "$metadata": {
+    "tokenSetOrder": [
+      "primitive",
+      "semantic/light"
+    ]
+  }
+}

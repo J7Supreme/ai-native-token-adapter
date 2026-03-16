@@ -1,14 +1,17 @@
 # Figma Variable Importer
 
-Standalone Figma plugin package for importing adapted design-token payloads into local Figma Variables and paint styles.
+Standalone Figma plugin package for importing multi-theme token payloads into local Figma Variables and paint styles.
 
 ## What It Imports
 
-This plugin imports JSON payloads that conform to [`schema/figma-adapter-spec.md`](../schema/figma-adapter-spec.md).
+This plugin is intended to support two input paths:
+
+- `Token Studio native schema` as a direct import source
+- [`AI Native schema`](../schema/ai-native-schema.md) as the normalized import contract for adapted sources
 
 It is not intended to import:
 
-- raw Figma variable exports
+- raw Figma variable exports without adaptation
 - arbitrary design-token JSON without adaptation
 - project-specific skill metadata
 
@@ -24,14 +27,18 @@ It is not intended to import:
 The plugin expects:
 
 - a required `primitive` set
-- optional mode-aware sets such as `semantic/light` and `semantic/dark`
+- one or more mode-aware sets such as `semantic/light` and `semantic/dark`
 - token nodes with `$value`
 - stable alias paths such as `{primitive.color.blue.500}`
 
 ## Typical Workflow
 
 ```text
-source tokens -> adapt to figma adapter spec -> import JSON into plugin
+Token Studio native schema -> import JSON into plugin
+```
+
+```text
+Figma export or custom model -> adapt to AI Native schema -> import JSON into plugin
 ```
 
 If your source system is already clean and aligned, adaptation can be minimal. If it is inconsistent, add a normalization pass before adaptation.

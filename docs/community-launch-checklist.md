@@ -21,6 +21,8 @@ Use this checklist before submitting the plugin to Figma Community.
 - Verify import works from pasted JSON.
 - Verify import works from uploaded JSON file.
 - Verify invalid JSON produces a clear error.
+- Verify Token Studio native schema imports correctly.
+- Verify multi-theme payloads create the expected modes in Figma.
 - Verify alias-based tokens import correctly.
 - Verify gradient tokens create local paint styles.
 - Verify the plugin behaves correctly when `pattern` and `component` sets are absent.
@@ -32,7 +34,8 @@ Use this checklist before submitting the plugin to Figma Community.
 - Finalize the short description from [`docs/community-listing.md`](./community-listing.md).
 - Finalize the full description from [`docs/community-listing.md`](./community-listing.md).
 - Replace the placeholder support contact in [`docs/community-listing.md`](./community-listing.md).
-- Make sure the listing clearly states this is a schema-driven importer, not a raw Figma export re-import tool.
+- Make sure the listing clearly states that Token Studio native schema is supported directly.
+- Make sure the listing clearly states that raw Figma exports require adaptation into AI Native schema.
 
 ## Visual Assets
 
@@ -49,7 +52,7 @@ Use this checklist before submitting the plugin to Figma Community.
 - State clearly that the plugin has no network access.
 - State clearly that JSON is processed locally.
 - State clearly that no login, API key, or backend service is required.
-- Avoid overstating compatibility; describe the expected adapter contract accurately.
+- Avoid overstating compatibility; describe Token Studio native support and the AI Native schema accurately.
 - Make sure there is no placeholder or internal-only language in the user-facing listing.
 
 ## Post-Submission
